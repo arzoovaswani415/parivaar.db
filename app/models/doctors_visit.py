@@ -15,3 +15,5 @@ class DoctorsVisit(SQLModel, table=True):
     family_member: "FamilyMember" = Relationship(back_populates="doctors_visits")
     prescription: "PrescriptionDocument" = Relationship(back_populates="doctors_visit"
 )
+    medical_history: "MedicalHistory" = Relationship(back_populates="doctors_visit")
+

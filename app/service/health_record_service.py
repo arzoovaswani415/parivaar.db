@@ -3,7 +3,6 @@ from sqlmodel import select
 from app.models.health_record import HealthRecord
 from app.models.family_member import FamilyMember
 from app.models.user import User
-from app.models.health_record import HealthRecord
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.dependency import get_current_user
 from app.models.family_member import FamilyMember

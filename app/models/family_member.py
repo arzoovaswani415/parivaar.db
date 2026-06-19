@@ -29,6 +29,8 @@ class FamilyMember(SQLModel, table=True):
         default=None,
         foreign_key="user.id"
     )
+    emergency_contact_name: str | None = None
+    emergency_contact_phone: str | None = None
 
     user: "User" = Relationship(back_populates="family_members")
     health_record: List["HealthRecord"] = Relationship(back_populates="family_member")
@@ -38,3 +40,5 @@ class FamilyMember(SQLModel, table=True):
     prescription_documents: List["PrescriptionDocument"] = Relationship(
     back_populates="family_member"
 )
+    medical_history: List["MedicalHistory"] = Relationship(back_populates="family_member")
+    vaccinations: List["Vaccination"] = Relationship(back_populates="family_member")

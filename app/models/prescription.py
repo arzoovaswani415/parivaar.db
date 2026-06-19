@@ -36,6 +36,7 @@ class PrescriptionDocument(SQLModel, table=True):
     family_member: "FamilyMember" = Relationship(back_populates="prescription_documents")
     doctors_visit: "DoctorsVisit" = Relationship(back_populates="prescription")
     prescription_medicines: list["PrescriptionMedicine"] = Relationship(back_populates="prescription_document")
+    medical_history: list["MedicalHistory"] = Relationship(back_populates="prescription_document")
 
 class PrescriptionMedicine(SQLModel, table=True):
 
