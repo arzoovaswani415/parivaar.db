@@ -62,3 +62,68 @@ async def delete_medication_in_db(medication_id: int, user_id: int, session: Asy
     await session.delete(result)
     await session.commit()
     return {"detail": "Medication deleted successfully"}
+
+
+async def get_medications_list(
+    user_id: int,
+    session: AsyncSession,
+    family_member_id: int | None = None,
+    active: bool | None = None,
+    medicine_name: str | None = None,
+    page: int = 1,
+    page_size: int = 10,
+    sort_by: str = "start_date",
+    sort_order: str = "desc"
+):
+    allowed_sort_fields = {"start_date", "end_date", "medicine_name"}
+    if sort_by not in allowed_sort_fields:
+        sort_by = "start_date"
+    if sort_order not in ["asc", "desc"]:
+        sort_order = "desc"
+
+    query = select(Medications).join(FamilyMember).where(
+        FamilyMember.user_id == user_id,
+        FamilyMember.is_active == True
+    )
+
+    if family_member_id is not None:
+        query = query.where(Medications.family_member_id == family_member_id)
+
+    if medicine_name is not None:
+        query = query.where(Medications.medicine_name.ilike(f"%{medicine_name}%"))
+
+    if active is not None:
+        if active:
+            query = query.where(Medications.end_date.is_(None))
+        else:
+            query = query.where(Medications.end_date.isnot(None))
+
+    total_result = await session.execute(
+        select(func.count(Medications.id)).select_from(Medications).join(FamilyMember).where(
+            FamilyMember.user_id == user_id,
+            FamilyMember.is_active == True
+        )
+    )
+    total = total_result.scalar()
+
+    if sort_order == "desc":
+        query = query.order_by(getattr(Medications, sort_by).desc())
+    else:
+        query = query.order_by(getattr(Medications, sort_by).asc())
+
+    page_size = min(page_size, 100)
+    offset = (page - 1) * page_size
+
+    query = query.offset(offset).limit(page_size)
+    result = await session.execute(query)
+    items = result.scalars().all()
+
+    total_pages = (total + page_size - 1) // page_size
+
+    return {
+        "items": items,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "total_pages": total_pages
+    }

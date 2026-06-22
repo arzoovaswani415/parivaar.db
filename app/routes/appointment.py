@@ -2,10 +2,17 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.database import get_session
-from app.service.appointment_service import save_appointment_in_db, get_appointments_from_db,update_appointment_in_db,delete_appointment_in_db
+from app.service.appointment_service import (
+    save_appointment_in_db,
+    get_appointments_from_db,
+    update_appointment_in_db,
+    delete_appointment_in_db,
+    get_appointments_list
+)
 from app.models.user import User
 from app.dependency import get_current_user
 from app.models.appointment import Appointment
+from datetime import date
 
 router = APIRouter(prefix="/appointments")
 
@@ -40,3 +47,33 @@ async def delete_appointment(appointment_id: int, current_user: User = Depends(g
     user_id = current_user.id
     result = await delete_appointment_in_db(appointment_id, user_id, session)
     return result  
+
+
+@router.get("/")
+async def list_appointments(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    family_member_id: int | None = None,
+    upcoming: bool | None = None,
+    completed: bool | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    page: int = 1,
+    page_size: int = 10,
+    sort_by: str = "appointment_date",
+    sort_order: str = "desc"
+):
+    result = await get_appointments_list(
+        current_user.id,
+        session,
+        family_member_id,
+        upcoming,
+        completed,
+        start_date,
+        end_date,
+        page,
+        page_size,
+        sort_by,
+        sort_order
+    )
+    return result

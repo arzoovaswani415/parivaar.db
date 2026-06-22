@@ -20,6 +20,8 @@ class FamilyMemberCreate(BaseModel):
     blood_group: str | None = None
     allergies: str | None = None
     chronic_conditions: str | None = None
+    phone_number: str | None = None
+    email: str | None = None
 
 
 @router.get("/get_all")

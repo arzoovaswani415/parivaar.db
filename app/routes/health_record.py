@@ -2,10 +2,17 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.database import get_session
-from app.service.health_record_service import save_health_record_to_db , delete_health_record_db, update_health_record_db ,get_health_record_db 
+from app.service.health_record_service import (
+    save_health_record_to_db,
+    delete_health_record_db,
+    update_health_record_db,
+    get_health_record_db,
+    get_health_records_list
+)
 from app.models.user import User
 from app.dependency import get_current_user
 from app.models.health_record import HealthRecord
+from datetime import date
 
 router = APIRouter(prefix="/health_records")
 
@@ -40,7 +47,33 @@ async def update_health_record(health_record_id: int, data: HealthRecordCreate, 
     updated_health_record = await update_health_record_db(health_record_id, data, current_user.id, session)
     return updated_health_record
 
-@router.put("/{health_record_id}/delete")
+@router.delete("/{health_record_id}")
 async def delete_health_record(health_record_id: int, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     await delete_health_record_db(health_record_id, current_user.id, session)
     return {"message": "Health record deleted successfully"}
+
+
+@router.get("/")
+async def list_health_records(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    family_member_id: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    page: int = 1,
+    page_size: int = 10,
+    sort_by: str = "created_at",
+    sort_order: str = "desc"
+):
+    result = await get_health_records_list(
+        current_user.id,
+        session,
+        family_member_id,
+        start_date,
+        end_date,
+        page,
+        page_size,
+        sort_by,
+        sort_order
+    )
+    return result

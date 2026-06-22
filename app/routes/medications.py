@@ -2,7 +2,13 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.database import get_session
-from app.service.medications_service import save_medication_to_db, get_medications_from_db, update_medication_in_db, delete_medication_in_db
+from app.service.medications_service import (
+    save_medication_to_db,
+    get_medications_from_db,
+    update_medication_in_db,
+    delete_medication_in_db,
+    get_medications_list
+)
 from app.models.user import User
 from app.dependency import get_current_user
 
@@ -42,3 +48,28 @@ async def delete_medication(medication_id: int, current_user: User = Depends(get
     user_id = current_user.id
     deleted_medication = await delete_medication_in_db(medication_id, user_id, session)
     return deleted_medication
+
+@router.get("/")
+async def list_medications(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    family_member_id: int | None = None,
+    active: bool | None = None,
+    medicine_name: str | None = None,
+    page: int = 1,
+    page_size: int = 10,
+    sort_by: str = "start_date",
+    sort_order: str = "desc"
+):
+    result = await get_medications_list(
+        current_user.id,
+        session,
+        family_member_id,
+        active,
+        medicine_name,
+        page,
+        page_size,
+        sort_by,
+        sort_order
+    )
+    return result

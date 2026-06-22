@@ -4,7 +4,13 @@ from pydantic import BaseModel
 from datetime import date
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.database import get_session
-from app.service.doctors_visit_service import save_doctors_visit_to_db, get_doctors_visits_from_db, update_doctors_visit_in_db, delete_doctors_visit_in_db
+from app.service.doctors_visit_service import (
+    save_doctors_visit_to_db,
+    get_doctors_visits_from_db,
+    update_doctors_visit_in_db,
+    delete_doctors_visit_in_db,
+    get_doctors_visits_list
+)
 from app.models.user import User
 
 
@@ -45,3 +51,32 @@ async def delete_doctors_visit(visit_id: int, current_user: User = Depends(get_c
     deleted_doctors_visit = await delete_doctors_visit_in_db(visit_id, user_id, session)
     return deleted_doctors_visit
 
+
+@router.get("/")
+async def list_doctors_visits(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    family_member_id: int | None = None,
+    doctor_name: str | None = None,
+    visit_date: date | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    page: int = 1,
+    page_size: int = 10,
+    sort_by: str = "visit_date",
+    sort_order: str = "desc"
+):
+    result = await get_doctors_visits_list(
+        current_user.id,
+        session,
+        family_member_id,
+        doctor_name,
+        visit_date,
+        start_date,
+        end_date,
+        page,
+        page_size,
+        sort_by,
+        sort_order
+    )
+    return result

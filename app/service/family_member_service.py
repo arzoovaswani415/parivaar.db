@@ -6,8 +6,40 @@ from sqlmodel import select
 
 
 async def save_family_member_to_db(user_id: int, data: FamilyMember, session: AsyncSession):
+    if data.relation and data.relation.lower() == "self":
+        raise HTTPException(status_code=400, detail="Cannot manually create a family member with relation 'self'.")
+
+    from app.models.user import User
+    user = await session.get(User, user_id)
+    family_id = user.family_id if user else None
+
+    email = getattr(data, "email", None)
+    if email:
+        # Check 1: User already registered in another family
+        existing_user_q = await session.execute(
+            select(User).where(User.email == email)
+        )
+        existing_user = existing_user_q.scalar_one_or_none()
+        if existing_user and existing_user.family_id and existing_user.family_id != family_id:
+            raise HTTPException(
+                status_code=400,
+                detail="This email is already associated with another family."
+            )
+
+        # Check 2: Already invited elsewhere
+        existing_member_q = await session.execute(
+            select(FamilyMember).where(FamilyMember.email == email)
+        )
+        existing_member = existing_member_q.scalar_one_or_none()
+        if existing_member and existing_member.family_id != family_id:
+            raise HTTPException(
+                status_code=400,
+                detail="This email has already been invited to another family."
+            )
+
     family_member = FamilyMember(
         user_id=user_id,
+        family_id=family_id,
         name=data.name,
         relation=data.relation,
         date_of_birth=data.date_of_birth,
@@ -15,10 +47,10 @@ async def save_family_member_to_db(user_id: int, data: FamilyMember, session: As
         blood_group=data.blood_group,
         allergies=data.allergies,
         chronic_conditions=data.chronic_conditions,
+        phone_number=getattr(data, "phone_number", None),
+        email=getattr(data, "email", None),
         is_primary=False,
-        # to ensure one primary member per user, we can check if there's already a primary member for this user before setting is_primary to true. If data.relation is "self", we can set is_primary to true, but we should also check if there's already a primary member for this user and handle that case (e.g., by raising an error or updating the existing primary member).
         is_active=True
-        
     )
     session.add(family_member)
     await session.commit()
@@ -26,7 +58,22 @@ async def save_family_member_to_db(user_id: int, data: FamilyMember, session: As
     return family_member
 
 async def get_family_members_from_db(user_id: int, session: AsyncSession):
-    result = await session.execute(select(FamilyMember).where(FamilyMember.user_id == user_id, FamilyMember.is_active == True))
+    from app.models.user import User
+    user = await session.get(User, user_id)
+    if user and user.family_id:
+        result = await session.execute(
+            select(FamilyMember).where(
+                FamilyMember.family_id == user.family_id,
+                FamilyMember.is_active == True
+            )
+        )
+    else:
+        result = await session.execute(
+            select(FamilyMember).where(
+                FamilyMember.user_id == user_id,
+                FamilyMember.is_active == True
+            )
+        )
     family_members = result.scalars().all()
     return family_members
     
@@ -84,6 +131,37 @@ async def update_family_member_in_db(
 
     if data.chronic_conditions is not None:
         family_member.chronic_conditions = data.chronic_conditions
+
+    if hasattr(data, "phone_number") and data.phone_number is not None:
+        family_member.phone_number = data.phone_number
+
+    if hasattr(data, "email") and data.email is not None:
+        email = data.email
+        if email:
+            from app.models.user import User
+            existing_user_q = await session.execute(
+                select(User).where(User.email == email)
+            )
+            existing_user = existing_user_q.scalar_one_or_none()
+            if existing_user and existing_user.family_id and existing_user.family_id != family_member.family_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="This email is already associated with another family."
+                )
+
+            existing_member_q = await session.execute(
+                select(FamilyMember).where(
+                    FamilyMember.email == email,
+                    FamilyMember.id != member_id
+                )
+            )
+            existing_member = existing_member_q.scalar_one_or_none()
+            if existing_member and existing_member.family_id != family_member.family_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="This email has already been invited to another family."
+                )
+        family_member.email = data.email
 
     await session.commit()
     await session.refresh(family_member)

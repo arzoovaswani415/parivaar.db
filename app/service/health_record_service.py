@@ -1,11 +1,13 @@
 from fastapi import HTTPException
 from sqlmodel import select
+from sqlalchemy import func
 from app.models.health_record import HealthRecord
 from app.models.family_member import FamilyMember
 from app.models.user import User
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.dependency import get_current_user
-from app.models.family_member import FamilyMember
+from datetime import date
+
 
 async def save_health_record_to_db(data: HealthRecord, user_id: int, session: AsyncSession):
     # health_record = HealthRecord(
@@ -97,4 +99,64 @@ async def update_health_record_db(health_record_id: int, data: HealthRecord, use
     # we refresh the health_record instance after committing the changes to the database to ensure that we have the most up-to-date data from the database, including any changes that may have been made by triggers or other processes in the database. This is especially important if there are any fields in the HealthRecord model that are automatically updated by the database, such as a last_updated timestamp or an auto-incrementing version number. By refreshing the instance, we can ensure that we have the latest values for all fields in the health record before returning it to the client.
     return health_record    
 
-# filter
+
+async def get_health_records_list(
+    user_id: int,
+    session: AsyncSession,
+    family_member_id: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    page: int = 1,
+    page_size: int = 10,
+    sort_by: str = "created_at",
+    sort_order: str = "desc"
+):
+    allowed_sort_fields = {"created_at"}
+    if sort_by not in allowed_sort_fields:
+        sort_by = "created_at"
+    if sort_order not in ["asc", "desc"]:
+        sort_order = "desc"
+
+    query = select(HealthRecord).join(FamilyMember).where(
+        FamilyMember.user_id == user_id,
+        FamilyMember.is_active == True
+    )
+
+    if family_member_id is not None:
+        query = query.where(HealthRecord.family_member_id == family_member_id)
+
+    if start_date is not None:
+        query = query.where(HealthRecord.created_at >= start_date)
+
+    if end_date is not None:
+        query = query.where(HealthRecord.created_at <= end_date)
+
+    total_result = await session.execute(
+        select(func.count(HealthRecord.id)).select_from(HealthRecord).join(FamilyMember).where(
+            FamilyMember.user_id == user_id,
+            FamilyMember.is_active == True
+        )
+    )
+    total = total_result.scalar()
+
+    if sort_order == "desc":
+        query = query.order_by(getattr(HealthRecord, sort_by).desc())
+    else:
+        query = query.order_by(getattr(HealthRecord, sort_by).asc())
+
+    page_size = min(page_size, 100)
+    offset = (page - 1) * page_size
+
+    query = query.offset(offset).limit(page_size)
+    result = await session.execute(query)
+    items = result.scalars().all()
+
+    total_pages = (total + page_size - 1) // page_size
+
+    return {
+        "items": items,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "total_pages": total_pages
+    }

@@ -41,6 +41,7 @@ class MedicalHistory(SQLModel, table=True):
     # DOCTOR_VISIT - ex: type 2 diabetes, asthma, hypertension, etc. diagnosed by a doctor during a visit
     # PRESCRIPTION - ex: prescription for penicillin, amoxicillin, etc. that indicates an allergy
 
+    blood_group: str | None = None
     linked_visit_id: int | None = Field(
         default=None,
         foreign_key="doctorsvisit.id"
@@ -54,6 +55,7 @@ class MedicalHistory(SQLModel, table=True):
     is_confirmed: bool = Field(
         default=True
     )
+    
 
     created_at: datetime = Field(
         default_factory=datetime.utcnow

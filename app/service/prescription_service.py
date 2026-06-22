@@ -212,6 +212,15 @@ async def upload_prescription_service(
     # 5. Return Verification Screen Data
     # --------------------------------------------------
 
+    suggested_reminders = [
+        {
+            "title": f"Take {med['suggested_name']}",
+            "type": "MEDICATION",
+            "frequency": "DAILY"
+        }
+        for med in medicines
+    ]
+
     return {
         "prescription_id":
             prescription.id,
@@ -226,8 +235,12 @@ async def upload_prescription_service(
             prescription.overall_confidence,
 
         "medicines":
-            medicines
+            medicines,
+
+        "suggestedReminders":
+            suggested_reminders
     }
+
 
 async def verify_prescription_service(
     prescription_id: int,
@@ -274,12 +287,13 @@ async def verify_prescription_service(
 
     for item in data.medicines:
 
-        medication = Medication(
+        medication = Medications(
             family_member_id=family_member.id,
             medicine_name=item.medicine_name,
             dosage=item.dosage,
             frequency=item.frequency
         )
+
 
         medications_to_create.append(
             medication

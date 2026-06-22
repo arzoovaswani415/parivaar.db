@@ -12,10 +12,8 @@ class FamilyMember(SQLModel, table=True):
     relation: str  # self, father, mother, child
     date_of_birth: date | None = None
     gender: str | None = None
+    phone_number: str | None = None
     blood_group: str | None = None
-
-    allergies: str | None = None
-    chronic_conditions: str | None = None
 
     is_primary: bool = Field(default=False)
     # is_primary should be true if relation is self, and there should only be one family member with relation self for each user. We can enforce this in the service layer when creating or updating family members.
@@ -24,15 +22,29 @@ class FamilyMember(SQLModel, table=True):
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime | None = None
-    phone_number: str | None = None
+   
     linked_user_id: int | None = Field(
         default=None,
         foreign_key="user.id"
     )
     emergency_contact_name: str | None = None
     emergency_contact_phone: str | None = None
+    family_id: int | None = Field(default=None, foreign_key="family.id")
 
-    user: "User" = Relationship(back_populates="family_members")
+    email: str | None = Field(
+    default=None,
+    unique=True,
+    index=True
+)
+
+    invite_status: str = Field(
+        default="pending"
+    )
+
+    user: "User" = Relationship(
+        back_populates="family_members",
+        sa_relationship_kwargs={"foreign_keys": "[FamilyMember.user_id]", "lazy": "selectin"}
+    )
     health_record: List["HealthRecord"] = Relationship(back_populates="family_member")
     doctors_visits: List["DoctorsVisit"] = Relationship(back_populates="family_member")
     medications: List["Medications"] = Relationship(back_populates="family_member")
@@ -42,3 +54,8 @@ class FamilyMember(SQLModel, table=True):
 )
     medical_history: List["MedicalHistory"] = Relationship(back_populates="family_member")
     vaccinations: List["Vaccination"] = Relationship(back_populates="family_member")
+    insurances: List["Insurance"] = Relationship(back_populates="family_member")
+    family: "Family" = Relationship(back_populates="family_members")
+    reminders: List["Reminder"] = Relationship(back_populates="family_member")
+    notifications: List["Notification"] = Relationship(back_populates="family_member")
+
